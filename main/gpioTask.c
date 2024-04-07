@@ -32,6 +32,10 @@ SemaphoreHandle_t xLockSemaphore;
 
 static const char TAG[9] = "ESP_GPIO"; // FIXME (MAGIC NUMBER)
 
+extern const char rtrnNewLine[3]; // FIXME (MAGIC NUMBER)
+extern const char heapFail[28]; // FIXME (MAGIC NUMBER)
+extern const char mtxFail[25]; // FIXME (MAGIC NUMBER)
+
 
 
 void startGpioConfig(void)

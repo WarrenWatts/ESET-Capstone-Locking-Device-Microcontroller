@@ -16,11 +16,21 @@
 /* RTOS Headers */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 
 /* Driver Headers */
 #include "esp_log.h"
 #include "esp_err.h"
 
+#define INIT_DELAY pdMS_TO_TICKS(5000)
+#define SEND_DELAY pdMS_TO_TICKS(1000)
+#define ALIVE_PEND pdMS_TO_TICKS(15000)
+#define DEF_CHNL 11
 
+extern SemaphoreHandle_t xEspnowEventSem;
+
+typedef void (*espnowFuncPtr)(void);
+
+extern void startEspnowConfig(void);
 
 #endif /* ESPNOWTASK_H_ */

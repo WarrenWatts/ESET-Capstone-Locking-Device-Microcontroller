@@ -20,6 +20,7 @@
 
 #define DEF_PEND pdMS_TO_TICKS(10)
 #define LOCK_DELAY pdMS_TO_TICKS(10000)
+#define NO_WAIT 0
 
 #define STACK_DEPTH 2048
 #define BASE_PRIO 10
