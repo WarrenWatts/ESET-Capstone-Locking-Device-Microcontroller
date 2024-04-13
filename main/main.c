@@ -33,5 +33,6 @@ const char rtrnNewLine[3] = "\r\n"; // FIXME (MAGIC NUMBER)
 
 void app_main(void)
 {
-    
+    startGpioConfig();
+    startEspnowConfig();
 }

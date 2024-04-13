@@ -12,5 +12,7 @@
         "board/esp32s3-bridge.cfg"
     ],
     "idf.pythonBinPathWin": "C:\\.espressif\\python_env\\idf5.1_py3.11_env\\Scripts\\python.exe",
-    "idf.toolsPathWin": "C:\\.espressif"
+    "idf.toolsPathWin": "C:\\.espressif",
+    "idf.portWin": "COM6",
+    "idf.flashType": "UART"
 }

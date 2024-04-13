@@ -23,11 +23,9 @@
 #include "esp_err.h"
 
 #define INIT_DELAY pdMS_TO_TICKS(5000)
-#define SEND_DELAY pdMS_TO_TICKS(1000)
+#define SEND_DELAY pdMS_TO_TICKS(100)
 #define ALIVE_PEND pdMS_TO_TICKS(15000)
 #define DEF_CHNL 11
-
-extern SemaphoreHandle_t xEspnowEventSem;
 
 typedef void (*espnowFuncPtr)(void);
 

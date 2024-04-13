@@ -33,8 +33,8 @@
 
 
 
-SemaphoreHandle_t xEspnowEventSem;
-SemaphoreHandle_t xLockSemaphore;
+static SemaphoreHandle_t xEspnowEventSem;
+extern SemaphoreHandle_t xLockSemaphore;
 
 static SemaphoreHandle_t xRcvInfoMutex;
 
@@ -51,8 +51,8 @@ void espNowRcvCallback(const esp_now_recv_info_t* espNowInfo, const uint8_t *myD
 
 static const espnowFuncPtr stateArr[2] = // FIXME (MAGIC NUMBER)
 {
-    changeChannel,
     checkChannelStatus,
+    changeChannel
 };
 
 
@@ -86,9 +86,9 @@ void startEspnowConfig(void)
     esp_now_register_recv_cb(espNowRcvCallback);
     esp_now_register_send_cb(espNowSendCallback);
 
-    espnowPeerConfig();
-
     startEspnowRtosConfig();
+
+    espnowPeerConfig();
 }
 
 
@@ -142,11 +142,11 @@ void espNowSendCallback(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
     if(status)
     {
-        xSemaphoreGive(xEspnowEventSem);
+        xSemaphoreTake(xEspnowEventSem, NO_WAIT);
     }
     else
     {
-        xSemaphoreTake(xEspnowEventSem, NO_WAIT);
+        xSemaphoreGive(xEspnowEventSem);
     }
 }
 
@@ -171,18 +171,18 @@ void startEspnowRtosConfig(void)
 
 void changeChannel(void)
 {
-    static uint8_t chnlCount = 0;
+    static uint8_t chnlCount = 1;
 
     if(chnlCount < 11)
     {
-        chnlCount = 0;
+        chnlCount = 1;
     }
-
     ESP_ERROR_CHECK(esp_wifi_set_channel(chnlCount, WIFI_SECOND_CHAN_NONE));
 
     espnowPeerConfig();
 
     vTaskDelay(SEND_DELAY);
+
     esp_now_send(transmitterMAC, msgData, 2); // FIXME (MAGIC NUMBER)
 
     chnlCount++;
@@ -200,11 +200,12 @@ void checkChannelStatus(void)
 
 static void chnlCtrlTask(void *pvParameters)
 {
+    int semVal;
+
     vTaskDelay(INIT_DELAY);
 
     while(true)
     {
-        int semVal = 0;
         semVal = uxSemaphoreGetCount(xEspnowEventSem);
 
         stateArr[semVal]();
