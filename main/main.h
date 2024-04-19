@@ -25,9 +25,19 @@
 #define STACK_DEPTH 2048
 #define BASE_PRIO 10
 
+/* Enum for Global Constant String Sizes */
+typedef enum 
+{
+    NEWLINE_LEN = 3,
+    MALLOC_LEN = 14,
+    MTX_LEN = 25,
+    HEAP_LEN = 28,
+
+} glblStrLengths;
+
 /* String Constants Declarations*/
-extern const char rtrnNewLine[3]; // FIXME (MAGIC NUMBER)
-extern const char heapFail[28]; // FIXME (MAGIC NUMBER)
-extern const char mtxFail[25]; // FIXME (MAGIC NUMBER)
+extern const char rtrnNewLine[NEWLINE_LEN];
+extern const char heapFail[HEAP_LEN];
+extern const char mtxFail[MTX_LEN];
 
 #endif /* MAIN_H_*/

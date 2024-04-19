@@ -33,38 +33,51 @@
 
 
 
-static SemaphoreHandle_t xEspnowEventSem;
-extern SemaphoreHandle_t xLockSemaphore;
+/* Local Defines */
+#define MSG_LEN 2
+#define TAG_LEN 9
 
-static SemaphoreHandle_t xRcvInfoMutex;
+#define MAX_CNT 1
+#define START_CNT 0
+#define MAX_ATTMPT 10
 
+#define MAX_CHNL 11
+#define BASE_CHNL (MAX_CNT)
+
+/* Local Function Declarations */
 void changeChannel(void);
-void checkChannelStatus(void);
-
 static void espnowPeerConfig(void);
 static void startEspnowRtosConfig(void);
 static void chnlCtrlTask(void *pvParameters);
-
+static bool getSpamGuard(void);
 void espNowSendCallback(const uint8_t *mac_addr, esp_now_send_status_t status);
 void espNowRcvCallback(const esp_now_recv_info_t* espNowInfo, const uint8_t *myData, int dateLen);
 
+/* FreeRTOS Local API Handles */
+static SemaphoreHandle_t xSemEspnowEvent;
+static SemaphoreHandle_t xMtxRcvInfo;
+static SemaphoreHandle_t xMtxSpamGuard;
 
-static const espnowFuncPtr stateArr[2] = // FIXME (MAGIC NUMBER)
-{
-    checkChannelStatus,
-    changeChannel
-};
+/* FreeRTOS Referencing API Handles */
+extern SemaphoreHandle_t xSemLock;
 
+/* Reference Declarations of Global Constant Strings */
+extern const char rtrnNewLine[NEWLINE_LEN];
+extern const char heapFail[HEAP_LEN];
+extern const char mtxFail[MTX_LEN];
 
-static const uint8_t msgData[2] = "1"; //FIXME (MAGIC NUMBER)
-static const char TAG[9] = "ESP_GPIO"; // FIXME (MAGIC NUMBER)
+/* Local String Constants */
+static const uint8_t msgData[MSG_LEN] = "1";
+static const char TAG[TAG_LEN] = "ESP_GPIO";
 
-extern const char rtrnNewLine[3]; // FIXME (MAGIC NUMBER)
-extern const char heapFail[28]; // FIXME (MAGIC NUMBER)
-extern const char mtxFail[25]; // FIXME (MAGIC NUMBER)
-
+/* Local Constant Logging String */
 static esp_now_peer_info_t transmitterInfo;
-static const uint8_t transmitterMAC[ESP_NOW_ETH_ALEN] = {0x7C, 0xDF, 0xA1, 0xE5, 0x44, 0x30};
+
+/* Peer Receiver MAC Address String */
+static const uint8_t transmitterMAC[ESP_NOW_ETH_ALEN] = {0x7C, 0xDF, 0xA1, 0xE6, 0xE1, 0x71};
+
+/* Variable to prevent spam of ESP-NOW Messages via Release Button */
+static bool spamGuard = true;
 
 
 
@@ -93,18 +106,38 @@ void startEspnowConfig(void)
 
 
 
+void startEspnowRtosConfig(void)
+{
+    if(!(xSemEspnowEvent = xSemaphoreCreateCounting(MAX_CNT, START_CNT)))
+    {
+        ESP_LOGE(TAG, "%s xSemEspnowEvent%s", heapFail, rtrnNewLine); 
+    }
+
+    if(!(xMtxRcvInfo = xSemaphoreCreateMutex()))
+    {
+        ESP_LOGE(TAG, "%s xMtxRcvInfo%s", heapFail, rtrnNewLine);
+    }
+
+    if(!(xMtxSpamGuard = xSemaphoreCreateMutex()))
+    {
+        ESP_LOGE(TAG, "%s xMtxSpamGuard%s", heapFail, rtrnNewLine);
+    }
+    
+    xTaskCreate(&chnlCtrlTask, "CTRL_TASK", STACK_DEPTH, 0, BASE_PRIO, 0);
+}
+
+
+
 static void espnowPeerConfig(void)
 {
-    if(xSemaphoreTake(xRcvInfoMutex, DEF_PEND))
+    if(xSemaphoreTake(xMtxRcvInfo, DEF_PEND))
     {
         static bool initialized = false;
 
         uint8_t primaryChnl = 0;
-        uint8_t *primaryChnlPtr = &primaryChnl;
         wifi_second_chan_t secondaryChnl = 0;
-        wifi_second_chan_t *secondaryChnlPtr = &secondaryChnl;
 
-        esp_wifi_get_channel(primaryChnlPtr, secondaryChnlPtr);
+        esp_wifi_get_channel(&primaryChnl, &secondaryChnl);
         transmitterInfo.channel = primaryChnl;
 
         if(!initialized)
@@ -121,11 +154,11 @@ static void espnowPeerConfig(void)
         {
             esp_now_mod_peer(&transmitterInfo);
         }
-        xSemaphoreGive(xRcvInfoMutex);
+        xSemaphoreGive(xMtxRcvInfo);
     }
     else
     {
-        ESP_LOGW(TAG, "%s Mutex%s", heapFail, rtrnNewLine);
+        ESP_LOGE(TAG, "%s xMtxRcvInfo%s", heapFail, rtrnNewLine);
     }
 }
 
@@ -133,81 +166,107 @@ static void espnowPeerConfig(void)
 
 void espNowRcvCallback(const esp_now_recv_info_t* espNowInfo, const uint8_t *myData, int dateLen)
 {
-    xSemaphoreGive(xLockSemaphore);
-}
-
-
-
-void espNowSendCallback(const uint8_t *mac_addr, esp_now_send_status_t status)
-{
-    if(status)
+    switch(myData[0])
     {
-        xSemaphoreTake(xEspnowEventSem, NO_WAIT);
-    }
-    else
-    {
-        xSemaphoreGive(xEspnowEventSem);
-    }
-}
+        case '1':
+            if(getSpamGuard())
+            {
+                setSpamGuard(false);
+                xSemaphoreGive(xSemLock);
+            }
+            break;
 
-
-
-void startEspnowRtosConfig(void)
-{
-    if(!(xEspnowEventSem = xSemaphoreCreateCounting(1, 0))) // FIXME (MAGIC NUMBER)
-    {
-        ESP_LOGW(TAG, "%s Semaphore%s", heapFail, rtrnNewLine); // FIXME 
+        case '2':
+            xSemaphoreGive(xSemEspnowEvent);
+            break;
+        
+        default:
+            break;
     }
-
-    if(!(xRcvInfoMutex = xSemaphoreCreateMutex()))
-    {
-        ESP_LOGW(TAG, "%s Mutex%s", heapFail, rtrnNewLine); // FIXME
-    }
-    
-    xTaskCreate(&chnlCtrlTask, "CTRL_TASK", STACK_DEPTH, 0, BASE_PRIO, 0);
 }
 
 
 
 void changeChannel(void)
 {
-    static uint8_t chnlCount = 1;
+    static uint8_t chnlCount = BASE_CHNL;
 
-    if(chnlCount < 11)
+    if(chnlCount > MAX_CHNL)
     {
-        chnlCount = 1;
+        chnlCount = BASE_CHNL;
     }
     ESP_ERROR_CHECK(esp_wifi_set_channel(chnlCount, WIFI_SECOND_CHAN_NONE));
 
     espnowPeerConfig();
-
-    vTaskDelay(SEND_DELAY);
-
-    esp_now_send(transmitterMAC, msgData, 2); // FIXME (MAGIC NUMBER)
 
     chnlCount++;
 }
 
 
 
-void checkChannelStatus(void)
+void setSpamGuard(bool spamGuardVal)
 {
-    vTaskDelay(ALIVE_PEND);
-    esp_now_send(transmitterMAC, msgData, 2); // FIXME (MAGIC NUMBER)
+    if(xSemaphoreTake(xMtxSpamGuard, DEF_PEND))
+    {
+        spamGuard = spamGuardVal;
+        xSemaphoreGive(xMtxSpamGuard);
+    }
+    else
+    {
+        ESP_LOGE(TAG, "xMtxSpamGuard %s%s", mtxFail, rtrnNewLine);
+    }
+}
+
+
+
+static bool getSpamGuard(void)
+{
+    bool spamGuardVal = false;
+
+    if(xSemaphoreTake(xMtxSpamGuard, DEF_PEND))
+    {
+        spamGuardVal = spamGuard;
+        xSemaphoreGive(xMtxSpamGuard);
+    }
+    else
+    {
+        ESP_LOGE(TAG, "xMtxSpamGuard %s%s", mtxFail, rtrnNewLine);
+    }
+
+    return spamGuardVal;
 }
 
 
 
 static void chnlCtrlTask(void *pvParameters)
 {
-    int semVal;
-
-    vTaskDelay(INIT_DELAY);
+    bool connected = true;
+    uint16_t aliveDelay;
+    uint8_t attemptCnt = 0;
 
     while(true)
     {
-        semVal = uxSemaphoreGetCount(xEspnowEventSem);
+        aliveDelay = (connected) ? DEF_DELAY : SCAN_DELAY;
+        vTaskDelay(aliveDelay);
 
-        stateArr[semVal]();
+        esp_now_send(transmitterMAC, msgData, MSG_LEN);
+
+        if(!xSemaphoreTake(xSemEspnowEvent, SEND_WAIT))
+        {
+            connected = false;
+            if(++attemptCnt == MAX_ATTMPT)
+            {
+                changeChannel();
+            }
+            else
+            {
+                continue;
+            }
+        }
+        else
+        {
+            connected = true;
+        }
+        attemptCnt = 0;
     }
 }

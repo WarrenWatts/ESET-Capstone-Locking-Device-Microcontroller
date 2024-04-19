@@ -23,36 +23,37 @@
 /* Local Headers */
 #include "main.h"
 #include "gpioTask.h"
+#include "espnowTask.h"
 
 
 
+/* Local Defines */
+#define TAG_LEN 9
+
+/* Local Function Declarations */
 static void lockTask(void *pvParameters);
 
-SemaphoreHandle_t xLockSemaphore;
+/* FreeRTOS Defining API Handles */
+SemaphoreHandle_t xSemLock;
 
-static const char TAG[9] = "ESP_GPIO"; // FIXME (MAGIC NUMBER)
+/* Reference Declarations of Global Constant Strings */
+extern const char rtrnNewLine[NEWLINE_LEN];
+extern const char heapFail[HEAP_LEN];
+extern const char mtxFail[MTX_LEN];
 
-extern const char rtrnNewLine[3]; // FIXME (MAGIC NUMBER)
-extern const char heapFail[28]; // FIXME (MAGIC NUMBER)
-extern const char mtxFail[25]; // FIXME (MAGIC NUMBER)
+/* Local String Constants */
+static const char TAG[TAG_LEN] = "ESP_GPIO";
 
 
 
 void startGpioConfig(void)
 {
-    gpio_config_t lockConfig;
+    gpio_reset_pin(GPIO_NUM_41);
+    gpio_set_direction(GPIO_NUM_41, GPIO_MODE_OUTPUT);
 
-    lockConfig.pin_bit_mask = LOCK_MASK;
-    lockConfig.mode = GPIO_MODE_OUTPUT;
-    lockConfig.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    lockConfig.pull_up_en = GPIO_PULLUP_DISABLE;
-    lockConfig.intr_type = GPIO_INTR_DISABLE;
-
-    gpio_config(&lockConfig);
-
-    if(!(xLockSemaphore = xSemaphoreCreateBinary()))
+    if(!(xSemLock = xSemaphoreCreateBinary()))
     {
-        ESP_LOGW(TAG, "%s Semaphore%s", heapFail, rtrnNewLine);
+        ESP_LOGE(TAG, "%s xSemLock%s", heapFail, rtrnNewLine);
     }
 
     xTaskCreate(&lockTask, "LOCK_TASK", STACK_DEPTH, 0, BASE_PRIO, 0);
@@ -64,10 +65,12 @@ static void lockTask(void *pvParameters)
 {
     while(true)
     {
-        xSemaphoreTake(xLockSemaphore, portMAX_DELAY);
+        xSemaphoreTake(xSemLock, portMAX_DELAY);
 
         gpio_set_level(LOCK_PIN, SET_HIGH);
         vTaskDelay(LOCK_DELAY);
         gpio_set_level(LOCK_PIN, SET_LOW);
+
+        setSpamGuard(true);
     }
 }

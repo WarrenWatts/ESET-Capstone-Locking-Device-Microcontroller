@@ -23,15 +23,19 @@
 #include "esp_log.h"
 #include "esp_err.h"
 
+
+
+/* Defines */
 #define SET_HIGH 1
-#define SET_LOW 1
-
+#define SET_LOW 0
 #define LOCK_MASK (1ULL << GPIO_NUM_41)
-#define LOCK_PIN GPIO_NUM_41 // Could optimize by placing defines within one another if you get what I'm saying...
+#define LOCK_PIN GPIO_NUM_41
 
-extern SemaphoreHandle_t xLockSemaphore;
-
+/* Function Declarations */
 extern void startGpioConfig(void);
+
+/* FreeRTOS Declared API Handles */
+extern SemaphoreHandle_t xSemLock;
 
 
 #endif /* GPIOTASK_H_ */
