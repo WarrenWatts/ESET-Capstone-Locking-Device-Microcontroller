@@ -24,7 +24,7 @@
 #define NO_WAIT 0
 
 #define STACK_DEPTH 2048
-#define BASE_PRIO 10
+#define BASE_PRIO 20
 
 /* Enum for Global Constant String Sizes */
 typedef enum 

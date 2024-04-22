@@ -80,7 +80,7 @@ static const char TAG[TAG_LEN] = "ESP_GPIO";
 */
 void startGpioConfig(void)
 {
-    gpio_reset_pin(GPIO_NUM_41);
+    gpio_reset_pin(GPIO_NUM_41); /* Wipes any previous configuration held by pin */
     gpio_set_direction(GPIO_NUM_41, GPIO_MODE_OUTPUT);
 
     if(!(xSemLock = xSemaphoreCreateBinary()))
