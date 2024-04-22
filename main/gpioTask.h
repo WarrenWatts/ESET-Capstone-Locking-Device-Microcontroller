@@ -4,7 +4,9 @@
 ** Author: Warren Watts
 ** File: gpioTask.h
 ** --------
-** .......
+** Header file for gpioTask.c. Provides function
+** declarations for the configuration function
+** and a Semaphore giver function.
 */
 
 #ifndef GPIOTASK_H_
@@ -16,7 +18,6 @@
 /* RTOS Headers */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/semphr.h"
 
 /* Driver Headers */
 #include "driver/gpio.h"
@@ -24,18 +25,9 @@
 #include "esp_err.h"
 
 
-
-/* Defines */
-#define SET_HIGH 1
-#define SET_LOW 0
-#define LOCK_MASK (1ULL << GPIO_NUM_41)
-#define LOCK_PIN GPIO_NUM_41
-
 /* Function Declarations */
 extern void startGpioConfig(void);
-
-/* FreeRTOS Declared API Handles */
-extern SemaphoreHandle_t xSemLock;
+extern void giveSemLock(void);
 
 
 #endif /* GPIOTASK_H_ */

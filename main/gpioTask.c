@@ -4,7 +4,9 @@
 ** Author: Warren Watts
 ** File: gpioTask.c
 ** --------
-** .......
+** Configures necessary GPIO for Solenoid lock 
+** and creates a task that controls the locks
+** activation.
 */
 
 /* Standard Library Headers */
@@ -27,14 +29,31 @@
 
 
 
+/* Variable Naming Abbreviations Legend:
+**
+** Sem - Semaphore
+** Mtx - Mutex
+** Rtrn - Return
+** Len - Length
+** 
+*/
+
+
+
 /* Local Defines */
 #define TAG_LEN 9
 
-/* Local Function Declarations */
-static void lockTask(void *pvParameters);
+#define SET_HIGH 1
+#define SET_LOW 0
 
-/* FreeRTOS Defining API Handles */
-SemaphoreHandle_t xSemLock;
+#define LOCK_MASK (1ULL << GPIO_NUM_41)
+#define LOCK_PIN GPIO_NUM_41
+
+/* Local Function Declarations */
+static void xLockTask(void *pvParameters);
+
+/* FreeRTOS Local API Handles */
+static SemaphoreHandle_t xSemLock;
 
 /* Reference Declarations of Global Constant Strings */
 extern const char rtrnNewLine[NEWLINE_LEN];
@@ -46,6 +65,19 @@ static const char TAG[TAG_LEN] = "ESP_GPIO";
 
 
 
+/* The startGpioConfig() function is used to initialize the
+** singular GPIO pin that controls the retracting and engaging
+** of the Solenoid lock. Due to its small size, a separate RTOS
+** config function was not created, and the synchronization
+** Semaphore for the locking mechanism and the Lock Task were created
+** here.
+**
+** Parameters:
+**  none
+**
+** Return:
+**  none
+*/
 void startGpioConfig(void)
 {
     gpio_reset_pin(GPIO_NUM_41);
@@ -56,12 +88,41 @@ void startGpioConfig(void)
         ESP_LOGE(TAG, "%s xSemLock%s", heapFail, rtrnNewLine);
     }
 
-    xTaskCreate(&lockTask, "LOCK_TASK", STACK_DEPTH, 0, BASE_PRIO, 0);
+    xTaskCreate(&xLockTask, "LOCK_TASK", STACK_DEPTH, 0, BASE_PRIO, 0);
 }
 
 
 
-static void lockTask(void *pvParameters)
+/* The giveSemLock() function simply gives the
+** synchronizing Semaphore xSemLock. This function 
+** was created for the sake of abstraction and to prevent
+** the need to share global variables. 
+**
+** Parameters:
+**  none
+**
+** Return:
+**  none
+*/
+void giveSemLock(void)
+{
+    xSemaphoreGive(xSemLock);
+}
+
+
+
+
+/* The xLockTask() function simply pends on a Semaphore
+** indefinitely. Once a Semaphore has been given, it retracts
+** the Solenoid, waits for a period, then re-engages the solenoid. 
+**
+** Parameters:
+**  none
+**
+** Return:
+**  none
+*/
+static void xLockTask(void *pvParameters)
 {
     while(true)
     {

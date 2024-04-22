@@ -4,7 +4,10 @@
 ** Author: Warren Watts
 ** File: espnowTask.c
 ** --------
-** .......
+** Configures ESP-NOW functionality and creates a task to send
+** ESP-NOW messages and a callback function that help to determine which kind
+** of message was received (status or activation message), handling them
+** accordingly.
 */
 
 /* Standard Library Headers */
@@ -33,6 +36,21 @@
 
 
 
+/* Variable Naming Abbreviations Legend:
+**
+** Sem - Semaphore
+** Mtx - Mutex
+** Rtrn - Return
+** Len - Length
+** Msg - message
+** Cnt - Count
+** Chnl - Channel
+** Rcv - Receive
+** 
+*/
+
+
+
 /* Local Defines */
 #define MSG_LEN 2
 #define TAG_LEN 9
@@ -45,21 +63,17 @@
 #define BASE_CHNL (MAX_CNT)
 
 /* Local Function Declarations */
-void changeChannel(void);
-static void espnowPeerConfig(void);
+void espnowRcvCallback(const esp_now_recv_info_t* espnowInfo, const uint8_t *myData, int dataLen);
+static void xchnlCtrlTask(void *pvParameters);
 static void startEspnowRtosConfig(void);
-static void chnlCtrlTask(void *pvParameters);
+static void espnowPeerConfig(void);
 static bool getSpamGuard(void);
-void espNowSendCallback(const uint8_t *mac_addr, esp_now_send_status_t status);
-void espNowRcvCallback(const esp_now_recv_info_t* espNowInfo, const uint8_t *myData, int dateLen);
+static void changeChnl(void);
 
 /* FreeRTOS Local API Handles */
 static SemaphoreHandle_t xSemEspnowEvent;
 static SemaphoreHandle_t xMtxRcvInfo;
 static SemaphoreHandle_t xMtxSpamGuard;
-
-/* FreeRTOS Referencing API Handles */
-extern SemaphoreHandle_t xSemLock;
 
 /* Reference Declarations of Global Constant Strings */
 extern const char rtrnNewLine[NEWLINE_LEN];
@@ -96,8 +110,7 @@ void startEspnowConfig(void)
     ESP_ERROR_CHECK( esp_wifi_set_channel(DEF_CHNL, WIFI_SECOND_CHAN_NONE));
 
     ESP_ERROR_CHECK(esp_now_init());
-    esp_now_register_recv_cb(espNowRcvCallback);
-    esp_now_register_send_cb(espNowSendCallback);
+    esp_now_register_recv_cb(espnowRcvCallback);
 
     startEspnowRtosConfig();
 
@@ -123,7 +136,7 @@ void startEspnowRtosConfig(void)
         ESP_LOGE(TAG, "%s xMtxSpamGuard%s", heapFail, rtrnNewLine);
     }
     
-    xTaskCreate(&chnlCtrlTask, "CTRL_TASK", STACK_DEPTH, 0, BASE_PRIO, 0);
+    xTaskCreate(&xchnlCtrlTask, "CTRL_TASK", STACK_DEPTH, 0, BASE_PRIO, 0);
 }
 
 
@@ -164,7 +177,7 @@ static void espnowPeerConfig(void)
 
 
 
-void espNowRcvCallback(const esp_now_recv_info_t* espNowInfo, const uint8_t *myData, int dateLen)
+void espnowRcvCallback(const esp_now_recv_info_t* espnowInfo, const uint8_t *myData, int dataLen)
 {
     switch(myData[0])
     {
@@ -172,7 +185,7 @@ void espNowRcvCallback(const esp_now_recv_info_t* espNowInfo, const uint8_t *myD
             if(getSpamGuard())
             {
                 setSpamGuard(false);
-                xSemaphoreGive(xSemLock);
+                giveSemLock();
             }
             break;
 
@@ -187,19 +200,19 @@ void espNowRcvCallback(const esp_now_recv_info_t* espNowInfo, const uint8_t *myD
 
 
 
-void changeChannel(void)
+static void changeChnl(void)
 {
-    static uint8_t chnlCount = BASE_CHNL;
+    static uint8_t chnlCnt = BASE_CHNL;
 
-    if(chnlCount > MAX_CHNL)
+    if(chnlCnt > MAX_CHNL)
     {
-        chnlCount = BASE_CHNL;
+        chnlCnt = BASE_CHNL;
     }
-    ESP_ERROR_CHECK(esp_wifi_set_channel(chnlCount, WIFI_SECOND_CHAN_NONE));
+    ESP_ERROR_CHECK(esp_wifi_set_channel(chnlCnt, WIFI_SECOND_CHAN_NONE));
 
     espnowPeerConfig();
 
-    chnlCount++;
+    chnlCnt++;
 }
 
 
@@ -238,16 +251,16 @@ static bool getSpamGuard(void)
 
 
 
-static void chnlCtrlTask(void *pvParameters)
+static void xchnlCtrlTask(void *pvParameters)
 {
     bool connected = true;
-    uint16_t aliveDelay;
+    uint16_t aliveStatusDelay;
     uint8_t attemptCnt = 0;
 
     while(true)
     {
-        aliveDelay = (connected) ? DEF_DELAY : SCAN_DELAY;
-        vTaskDelay(aliveDelay);
+        aliveStatusDelay = (connected) ? DEF_DELAY : SCAN_DELAY;
+        vTaskDelay(aliveStatusDelay);
 
         esp_now_send(transmitterMAC, msgData, MSG_LEN);
 
@@ -256,7 +269,7 @@ static void chnlCtrlTask(void *pvParameters)
             connected = false;
             if(++attemptCnt == MAX_ATTMPT)
             {
-                changeChannel();
+                changeChnl();
             }
             else
             {

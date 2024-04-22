@@ -4,7 +4,8 @@
 ** Author: Warren Watts
 ** File: main.c
 ** --------
-** .......
+** Main function and configuring of all ESP and
+** FreeRTOS functionality.
 */
 
 /* Standard Library Headers */
@@ -25,12 +26,34 @@
 
 
 
-const char heapFail[28] = "Insufficient heap space for"; // FIXME (MAGIC NUMBER)
-const char mtxFail[25] = "Mutex failed to take key"; // FIXME (MAGIC NUMBER)
-const char rtrnNewLine[3] = "\r\n"; // FIXME (MAGIC NUMBER)
+/* Variable Naming Abbreviations Legend:
+**
+** Mtx - Mutex
+** Rtrn - Return
+** Len - Length
+** 
+*/
 
 
 
+/* Defining Declarations of Global Constant Strings */
+const char heapFail[HEAP_LEN] = "Insufficient heap space for";
+const char mtxFail[MTX_LEN] = "Mutex failed to take key";
+const char rtrnNewLine[NEWLINE_LEN] = "\r\n";
+
+
+
+/* The app_main() function acts as the main() function for
+** ESP-IDF based projects. This function is utilized to 
+** configure all necessary ESP and FreeRTOS functionality
+** for this program.
+**
+** Parameters:
+**  none
+**
+** Return:
+**  none
+*/
 void app_main(void)
 {
     startGpioConfig();

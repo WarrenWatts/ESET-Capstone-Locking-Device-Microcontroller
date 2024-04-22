@@ -4,7 +4,8 @@
 ** Author: Warren Watts
 ** File: espnowTask.h
 ** --------
-** .......
+** Header file for espnowTask.c. Provides constant
+** values and function declarations.
 */
 
 #ifndef ESPNOWTASK_H_
@@ -34,8 +35,5 @@
 /* Function Declarations */
 extern void startEspnowConfig(void);
 extern void setSpamGuard(bool spamGuardVal);
-
-/* Typedefs for Pointer to Function */
-typedef void (*espnowFuncPtr)(void);
 
 #endif /* ESPNOWTASK_H_ */

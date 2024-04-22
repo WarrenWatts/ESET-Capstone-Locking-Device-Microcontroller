@@ -4,7 +4,8 @@
 ** Author: Warren Watts
 ** File: main.h
 ** ----------
-** ......
+** Header file for main.c. Provides constant
+** values to be utilized throughout the program.
 */
 
 #ifndef MAIN_H_
