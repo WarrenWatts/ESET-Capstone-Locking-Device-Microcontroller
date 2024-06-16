@@ -55,11 +55,6 @@ static void xLockTask(void *pvParameters);
 /* FreeRTOS Local API Handles */
 static SemaphoreHandle_t xSemLock;
 
-/* Reference Declarations of Global Constant Strings */
-extern const char rtrnNewLine[NEWLINE_LEN];
-extern const char heapFail[HEAP_LEN];
-extern const char mtxFail[MTX_LEN];
-
 /* Local String Constants */
 static const char TAG[TAG_LEN] = "ESP_GPIO";
 

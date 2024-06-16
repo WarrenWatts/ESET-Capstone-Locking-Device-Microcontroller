@@ -42,7 +42,7 @@
 ** Mtx - Mutex
 ** Rtrn - Return
 ** Len - Length
-** Msg - message
+** Msg - Message
 ** Cnt - Count
 ** Chnl - Channel
 ** Rcv - Receive
@@ -74,11 +74,6 @@ static void changeChnl(void);
 static SemaphoreHandle_t xSemEspnowEvent;
 static SemaphoreHandle_t xMtxRcvInfo;
 static SemaphoreHandle_t xMtxSpamGuard;
-
-/* Reference Declarations of Global Constant Strings */
-extern const char rtrnNewLine[NEWLINE_LEN];
-extern const char heapFail[HEAP_LEN];
-extern const char mtxFail[MTX_LEN];
 
 /* Local String Constants */
 static const uint8_t msgData[MSG_LEN] = "1";
@@ -115,7 +110,7 @@ void startEspnowConfig(void)
     /* TCP/IP Stack Initialization */
     ESP_ERROR_CHECK(esp_netif_init());
     
-    /* Creates Default Event Loop Task (Task Priority: 20)*/
+    /* Creates Default Event Loop Task (Task Priority: 20) */
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     wifi_init_config_t wifiInit = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&wifiInit));

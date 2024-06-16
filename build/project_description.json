@@ -1,7 +1,7 @@
 {
     "version":            "1",
     "project_name":       "locking-device-code",
-    "project_version":    "64a8e90-dirty",
+    "project_version":    "b8b8917-dirty",
     "project_path":       "C:/Users/wcwat/locking-device-code",
     "idf_path":           "C:/Users/wcwat/esp/esp-idf",
     "build_dir":          "C:/Users/wcwat/locking-device-code/build",
